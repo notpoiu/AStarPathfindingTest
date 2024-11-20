@@ -17,6 +17,9 @@ class Node:
     def __str__(self):
         return f"{self.type}Node({self.x}, {self.y})"
     
+    def __eq__(self, value: object) -> bool:
+        return value.x == self.x and value.y == self.y
+
     def get_node_as_emoji(self):
         if self.type == "Wall":
             return "⬛️"
@@ -93,13 +96,15 @@ def generate_pathfind_map(size = (5, 5)):
                 NodeType = "Start"
             elif x == destination_coordinates[0] and y == destination_coordinates[1]:
                 NodeType = "Destination"
+            elif random.randint(1, 5) == random.randint(1, 5):
+                NodeType = "Wall"
 
             path_to_pathfind[y].append(Node(x, y, NodeType))
     
     return path_to_pathfind, destination_coordinates
 
 def main():
-    map_size = (20, 10)
+    map_size = (10, 5)
 
     map_data, destination = generate_pathfind_map(map_size)
     display_map(map_data, map_size)
@@ -112,8 +117,8 @@ def main():
     # visited nodes as we dont want to revisit our old nodes
     # this is a matrix of the size of the map filled with booleans, false for not visited and true for visited
     visited_nodes = [[False for x in range(map_size[0])] for y in range(map_size[1])]
-
-    def get_lowest_cost_node_neighbour(node: Node, destinationNode: Node):
+    
+    def get_lowest_cost_node_neighbour(node: Node, destinationNode: Node, blockedNodes=None) -> Node:
         def is_pos_out_of_bounds(position):
             x = position[0]
             y = position[1]
@@ -124,15 +129,26 @@ def main():
             if x > (map_size[0] - 1) or y > (map_size[1] - 1):
                 return True
 
+            if math.isinf(get_node_cost_from_pos(position)):
+                return True
+
+            if blockedNodes and blockedNodes[node[1]][node[0]] == True:
+                return True
+
             return False
         
         def get_node_cost_from_pos(pos):
-            return map_data[pos[1]][pos[0]].calculate_cost_heurisitc(destinationNode)
+            try:
+                return map_data[pos[1]][pos[0]].calculate_cost_heurisitc(destinationNode)
+            except Exception as e:
+                info(f"error while accessing node cost at ({pos[0], pos[1]})")
+                return math.inf
+            
 
         lowest_cost_data = {
             "Position": (0, 0),
             "Cost": math.inf,
-            "Node": Node(0, 0, "Start")
+            "Node": Node(0, 0, "_internal_path_node")
         }
 
         # we should get the neighbouring nodes,
@@ -140,8 +156,11 @@ def main():
         for node in neighbouring_nodes:
             if is_pos_out_of_bounds(node):
                 continue
-
-            if visited_nodes[node[1]][node[0]] == True:
+            
+            try:
+                if visited_nodes[node[1]][node[0]] == True:
+                    continue
+            except:
                 continue
 
             cost = get_node_cost_from_pos(node)
@@ -154,24 +173,39 @@ def main():
                         "Cost": cost,
                         "Node": map_data[node[1]][node[0]]
                     }
-
+                    
                     if is_destination_node:
                         break
-
+            
             visited_nodes[node[1]][node[0]] = True
         
         return lowest_cost_data["Node"]
 
+    pathfindingStatus = "Success"
+    
     path = [[False for x in range(map_size[0])] for y in range(map_size[1])]
+    blockedNodes = [[False for x in range(map_size[0])] for y in range(map_size[1])]
+    
     lastNode = map_data[0][0]
     destinationNode = map_data[destination[1]][destination[0]]
+
     while not lastNode.is_destination_node():
-        lastNode = get_lowest_cost_node_neighbour(lastNode, destinationNode)
+        lowestCostNode = get_lowest_cost_node_neighbour(lastNode, destinationNode, blockedNodes)
+
+        if lowestCostNode.type == "_internal_path_node":
+            for y in visited_nodes:
+                y.clear()
+            
+            blockedNodes[lowestCostNode.y][lowestCostNode.x] = True
+            continue
+
+        lastNode = lowestCostNode
         info(f"Found node {lastNode}")
         path[lastNode.y][lastNode.x] = True
         time.sleep(0.05)
     
-    info("Finished pathfinding via A* algorithm!\n\n")
+    info(f"Finished pathfinding algo with A* algorithm!\n{colorama.Fore.CYAN}[A* Info - Status]{colorama.Fore.RESET} {pathfindingStatus == "Success" and colorama.Fore.GREEN or colorama.Fore.RED}{pathfindingStatus}{colorama.Fore.RESET}\n")
+
     display_map(map_data, map_size, path)
 
 if __name__ == "__main__":
