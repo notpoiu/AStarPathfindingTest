@@ -186,18 +186,24 @@ def main():
     path = [[False for x in range(map_size[0])] for y in range(map_size[1])]
     blockedNodes = [[False for x in range(map_size[0])] for y in range(map_size[1])]
     
+    lastLastNode = map_data[0][0]
     lastNode = map_data[0][0]
     destinationNode = map_data[destination[1]][destination[0]]
 
     while not lastNode.is_destination_node():
-        lowestCostNode = get_lowest_cost_node_neighbour(lastNode, destinationNode, blockedNodes)
-
+        lastLastNode = lastNode
+        lowestCostNode = get_lowest_cost_node_neighbour(lastLastNode, destinationNode, blockedNodes)
+        
         if lowestCostNode.type == "_internal_path_node":
             for y in visited_nodes:
                 y.clear()
             
-            blockedNodes[lowestCostNode.y][lowestCostNode.x] = True
-            continue
+            if not blockedNodes[lowestCostNode.y][lowestCostNode.x]:
+                blockedNodes[lowestCostNode.y][lowestCostNode.x] = True
+                continue
+            else:
+                pathfindingStatus = "Not Found"
+                break
 
         lastNode = lowestCostNode
         info(f"Found node {lastNode}")
